@@ -15,19 +15,6 @@ spark = (SparkSession.builder.config("spark.sql.session.timeZone",
 LIMIT_OF_AGREEMENT = 1.96
 
 
-def _df_to_nparray(df: DataFrame):
-    def data_transform(inner_df: DataFrame):
-        dtype = [("id", int), ("value", float)]
-        data = np.array(inner_df.collect(), dtype=dtype)
-        np.sort(data, order='id')
-        return data['value']
-
-    data1 = data_transform(df.select("id", "LeftTotalItemSaleDiscountAmount"))
-    data2 = data_transform(df.select("id", "RightTotalItemSaleDiscountAmount"))
-
-    return data1, data2
-
-
 def _bland_altman_data_eval(data1, data2):
     if data1.size != data2.size:
         raise Exception("Data arrays need to be equal in length")
@@ -249,7 +236,14 @@ if __name__ == '__main__':
           )
     df.show()
 
-    data1, data2 = _df_to_nparray(df)
+    def data_transform(inner_df: DataFrame):
+        dtype = [("id", int), ("value", float)]
+        data = np.array(inner_df.collect(), dtype=dtype)
+        np.sort(data, order='id')
+        return data['value']
+
+    data1 = data_transform(df.select("id", "LeftTotalItemSaleDiscountAmount"))
+    data2 = data_transform(df.select("id", "RightTotalItemSaleDiscountAmount"))
 
     correlation = stats.pearsonr(data1, data2)
     print(correlation)
