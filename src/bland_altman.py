@@ -1,16 +1,7 @@
 from collections import namedtuple
-
-from pyspark.sql import DataFrame
-from pyspark.sql import SparkSession
-from pathlib import Path
-from pyspark.sql.functions import monotonically_increasing_id
 from scipy import stats
 
 import numpy as np
-
-
-spark = (SparkSession.builder.config("spark.sql.session.timeZone",
-                                     "UTC").master("local").getOrCreate())
 
 LIMIT_OF_AGREEMENT = 1.96
 
@@ -124,7 +115,7 @@ def rangeFrameLabler(tickLocs, tickLabels, cadence):
 
     return labels
 
-def _drawBlandAltman(ba_stats: BlandAltmanStat):
+def _drawBlandAltman(ba_stats: BlandAltmanStat, title=None):
     import matplotlib
     matplotlib.use('agg')
     from matplotlib import pyplot as plt
@@ -138,9 +129,9 @@ def _drawBlandAltman(ba_stats: BlandAltmanStat):
     meanColour = '#6495ED'
     loaColour = 'coral'
     pointColour = '#6495ED'
-    title = None
 
     fig, ax = plt.subplots(figsize=figureSize, dpi=dpi)
+    # fig.suptitle(title, fontsize=16)
 
     if 'mean' in ba_stats.confidence_intervals.keys():
         ax.axhspan(ba_stats.confidence_intervals['mean'][0],
@@ -222,33 +213,4 @@ def _drawBlandAltman(ba_stats: BlandAltmanStat):
         ax.set_title(title)
 
     # plt.show()
-    plt.savefig("mygraph4.png")
-
-
-if __name__ == '__main__':
-    dir_path = Path(__file__).parent.parent
-    resources_path = Path(dir_path, "resources")
-    test_data_path = str(Path(resources_path, "input_test4.csv"))
-
-    df = (spark.read.csv(path=test_data_path, inferSchema=True, header=True)
-          .withColumn("id", monotonically_increasing_id())
-          .drop("StoreNumber", "BusinessDate")
-          )
-    df.show()
-
-    def data_transform(inner_df: DataFrame):
-        dtype = [("id", int), ("value", float)]
-        data = np.array(inner_df.collect(), dtype=dtype)
-        np.sort(data, order='id')
-        return data['value']
-
-    data1 = data_transform(df.select("id", "LeftTotalItemSaleDiscountAmount"))
-    data2 = data_transform(df.select("id", "RightTotalItemSaleDiscountAmount"))
-
-    correlation = stats.pearsonr(data1, data2)
-    print(correlation)
-
-    ba_stat = bland_altman(data1, data2)
-    _drawBlandAltman(ba_stat)
-
-
+    plt.savefig("{}.png".format(title))
